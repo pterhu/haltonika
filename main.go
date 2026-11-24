@@ -203,10 +203,10 @@ func main() {
 		log.Debugf("PACKET ARRIVED: %+v", message)
 
 		// Insert new record into InfluxDB
-		tags := map[string]string{
+		extraFields := map[string]string{
 			influxdb2.SourceTag: message.SourceAddress,
 		}
-		err := influxdb.InsertMessage(message.Decoded, tags)
+		err := influxdb.InsertMessage(message.Decoded, nil, extraFields)
 		if err != nil {
 			log.Errorf("Failed to close influxdb connection. %v", err)
 		}
