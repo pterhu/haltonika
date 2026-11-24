@@ -115,7 +115,7 @@ func (c *Connection) renderTimesamp(avlData teltonikaparser.AvlData) time.Time {
 	return time.UnixMilli(int64(avlData.UtimeMs)) // #nosec G115
 }
 
-func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded) error {
+func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.Decoded, extraFields map[string]string) error {
 	log := config.GetLogger(c.ctx)
 
 	tags := c.renderTags(record)
@@ -127,6 +127,17 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 		}
 
 		tags[k] = v
+	}
+	
+	fields := c.renderFields(data)
+	for k, v := range extraFields {
+		_, ok := fields[k]
+		if ok {
+			log.Warningf("'%s' key already exist in record related fields. Ignore it in extra fields list.", k)
+			continue
+		}
+
+		fields[k] = v
 	}
 
 	batchPointsConfig := client.BatchPointsConfig{
@@ -140,7 +151,6 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 
 	log.Debugf("Processing %d AVL data record.", len(record.Data))
 	for _, data := range record.Data {
-		fields := c.renderFields(data)
 		timestamp := c.renderTimesamp(data)
 
 		point, err := client.NewPoint(c.measurement, tags, fields, timestamp)
@@ -165,8 +175,8 @@ func (c *Connection) insert(extraTags map[string]string, record teltonikaparser.
 
 }
 
-func (c *Connection) InsertMessage(record teltonikaparser.Decoded, extraTags map[string]string) error {
-	err := c.insert(extraTags, record)
+func (c *Connection) InsertMessage(record teltonikaparser.Decoded, extraTags map[string]string, extraFields map[string]string) error {
+	err := c.insert(extraTags, record, extraFields)
 	if err != nil {
 		return fmt.Errorf("influxdb insert was failed. %v", err)
 	}
